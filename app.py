@@ -34,7 +34,7 @@ if not verif_mdp():
 # ── Interface principale ──────────────────────────────────────────────────────
 
 st.title("📋 Vérification fiche de salaire")
-st.caption("Belgique — Carrières du Tournaisis")
+st.caption("Belgique — Carrières du Tournaisis  |  Version 1.1")
 
 st.info(
     "**🔒 Confidentialité & sécurité de vos données**\n\n"
