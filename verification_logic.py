@@ -201,21 +201,21 @@ def parser_fiche(texte: str) -> dict:
     if mx:
         data["0570_jours"] = int(mx.group(1))
 
-    # Code 0720 — chômage temporaire
-    # Essai 1 : ligne résumé page 1
+    # Code 0720/9720 — chômage temporaire / intempérie
+    # Résumé page 1 (code 0720)
     mx = re.search(r"0720\s+\S+\s+(\d+)\s+([\d,]+)", texte)
     if mx:
         data["0720_jours"] = int(mx.group(1))
     else:
-        # Essai 2 : compter dans le calendrier (ex: "l : 03 0720 ...")
-        data["0720_jours"] = len(re.findall(r"[lmjv]\s*:\s*\d{2}\s+0720", texte))
+        # Calendrier : code 9720 (comme 9991=crédit-temps, 9570=grève)
+        data["0720_jours"] = len(re.findall(r"[lmjv]\s*:\s*\d{2}\s+9720", texte))
 
-    # Code 0420 — repos compensatoire
+    # Code 0420/9420 — repos compensatoire
     mx = re.search(r"0420\s+\S+\s+(\d+)\s+([\d,]+)", texte)
     if mx:
         data["0420_jours"] = int(mx.group(1))
     else:
-        data["0420_jours"] = len(re.findall(r"[lmjv]\s*:\s*\d{2}\s+0420", texte))
+        data["0420_jours"] = len(re.findall(r"[lmjv]\s*:\s*\d{2}\s+9420", texte))
 
     # Jours sans salaire — ligne calendrier weekday sans code 4 chiffres
     # Robuste : accepte n'importe quel nombre d'espaces autour du ":"
