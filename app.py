@@ -34,7 +34,7 @@ if not verif_mdp():
 # ── Interface principale ──────────────────────────────────────────────────────
 
 st.title("📋 Vérification fiche de salaire")
-st.caption("Belgique — Carrières du Tournaisis  |  Version 1.1")
+st.caption("Belgique — Carrières du Tournaisis  |  Version 1.2")
 
 st.info(
     "**🔒 Confidentialité & sécurité de vos données**\n\n"
@@ -193,4 +193,4 @@ if st.button("🔍 Analyser la fiche", use_container_width=True, type="primary")
         st.success("✔  Aucune anomalie détectée — fiche correcte.")
 
     st.divider()
-    st.caption("© Thierry LEPLA — Mai 2026")
+    st.caption("© Thierry LEPLA — Mai 2026 — Version 1.2")
