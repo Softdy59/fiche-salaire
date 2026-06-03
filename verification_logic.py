@@ -161,6 +161,7 @@ def parser_fiche(texte: str) -> dict:
         "1561_montant": 0.0, "1561_heures": 0.0,
         "9570_jours": 0,
         "0720_jours": 0,
+        "0420_jours": 0,
         "jours_sans_salaire": [],
     }
 
@@ -204,6 +205,11 @@ def parser_fiche(texte: str) -> dict:
     mx = re.search(r"0720\s+\S+\s+(\d+)\s+([\d,]+)", texte)
     if mx:
         data["0720_jours"] = int(mx.group(1))
+
+    # Code 0420 — repos compensatoire
+    mx = re.search(r"0420\s+\S+\s+(\d+)\s+([\d,]+)", texte)
+    if mx:
+        data["0420_jours"] = int(mx.group(1))
 
     # Jours sans salaire — lignes calendrier sans code (ex: "l : 18" seul)
     jours_sans = []
@@ -317,7 +323,8 @@ def verifier(data: dict, config: dict) -> list:
     j1280 = data["1280_jours"]
     j0570 = data["0570_jours"]
     j0720 = data.get("0720_jours", 0)
-    total  = j1010 + j1280 + j0570 + j0720
+    j0420 = data.get("0420_jours", 0)
+    total  = j1010 + j1280 + j0570 + j0720 + j0420
     lignes = [
         neutre(f"Jours crédit-temps (0991) : {nb_ct_fiche} j") if regime != "plein" else neutre(""),
         neutre(f"Pool à justifier : {nb_pool} j"),
@@ -328,6 +335,8 @@ def verifier(data: dict, config: dict) -> list:
     ]
     if j0720:
         lignes.append(neutre(f"Chômage temporaire   (0720) : {j0720} j"))
+    if j0420:
+        lignes.append(neutre(f"Repos compensatoire  (0420) : {j0420} j"))
     lignes += [
         neutre(""),
         neutre(f"Total justifié              : {total} j"),
