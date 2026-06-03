@@ -218,28 +218,30 @@ def parser_fiche(texte: str) -> dict:
         data["0420_jours"] = len(re.findall(r"[lmjv]\s*:\s*\d{2}\s+9420", texte))
 
     # Jours sans salaire — ligne calendrier weekday sans code 4 chiffres
-    # Robuste : accepte n'importe quel nombre d'espaces autour du ":"
+    JOURS_SEMAINE = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+
+    def nom_jour_reel(num_str: str) -> str:
+        """Retourne le vrai nom du jour à partir du numéro et du mois/année de la fiche."""
+        try:
+            if data["mois"] and data["annee"]:
+                d = date(data["annee"], data["mois"], int(num_str))
+                return JOURS_SEMAINE[d.weekday()]
+        except (ValueError, TypeError):
+            pass
+        return f"Jour {num_str}"
+
     jours_sans = []
     for ligne in texte.split("\n"):
         ligne_s = ligne.strip()
-        # Matcher : lettre + espaces + : + espaces + 2 chiffres + éventuels espaces + RIEN d'autre
         m_cal = re.match(r"^([lmjv])\s*:\s*(\d{2})\s*$", ligne_s)
         if m_cal:
-            lettre = m_cal.group(1)
-            num    = m_cal.group(2)
-            noms   = {"l": "Lundi", "m": "Mardi/Mercredi", "j": "Jeudi", "v": "Vendredi"}
-            jours_sans.append(f"{noms.get(lettre, lettre)} {num}")
+            num = m_cal.group(2)
+            jours_sans.append(f"{nom_jour_reel(num)} {num}")
             continue
-        # Format alternatif : lettre + : + chiffres + suite SANS code 4 chiffres
         m_cal2 = re.match(r"^([lmjv])\s*:\s*(\d{2})\s+(.+)$", ligne_s)
-        if m_cal2:
-            reste = m_cal2.group(3)
-            # Si aucun code 4 chiffres dans le reste → jour sans salaire
-            if not re.search(r"\b\d{4}\b", reste):
-                lettre = m_cal2.group(1)
-                num    = m_cal2.group(2)
-                noms   = {"l": "Lundi", "m": "Mardi/Mercredi", "j": "Jeudi", "v": "Vendredi"}
-                jours_sans.append(f"{noms.get(lettre, lettre)} {num}")
+        if m_cal2 and not re.search(r"\b\d{4}\b", m_cal2.group(3)):
+            num = m_cal2.group(2)
+            jours_sans.append(f"{nom_jour_reel(num)} {num}")
     data["jours_sans_salaire"] = jours_sans
 
     mx = re.search(r"0991\s+\S+\s+(\d+)\s+([\d,]+)", texte)
