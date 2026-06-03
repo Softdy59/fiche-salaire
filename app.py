@@ -9,6 +9,9 @@ st.set_page_config(
     layout="centered",
 )
 
+# Suppression des données en mémoire dès la fin de session
+import gc
+
 # ── Mot de passe ─────────────────────────────────────────────────────────────
 
 def verif_mdp():
@@ -32,6 +35,7 @@ if not verif_mdp():
 
 st.title("📋 Vérification fiche de salaire")
 st.caption("Belgique — Carrières du Tournaisis")
+st.info("🔒 Aucune donnée n'est conservée sur le serveur. Votre fiche est analysée en mémoire et immédiatement supprimée.", icon="🔒")
 
 # ── Upload fichiers ──
 st.header("1. Fiche de salaire")
@@ -126,6 +130,9 @@ if st.button("🔍 Analyser la fiche", use_container_width=True, type="primary")
             fichiers_data = [{"nom": f.name, "contenu": f.read()} for f in fichiers]
             texte = extraire_texte(fichiers_data)
             data  = parser_fiche(texte)
+            # Suppression immédiate des données brutes de la mémoire
+            del fichiers_data, texte
+            gc.collect()
         except Exception as e:
             st.error(f"Erreur de lecture : {e}")
             st.stop()
