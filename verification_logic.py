@@ -160,6 +160,8 @@ def parser_fiche(texte: str) -> dict:
         "3101_montant": 0.0, "3102_montant": 0.0,
         "1561_montant": 0.0, "1561_heures": 0.0,
         "9570_jours": 0,
+        "0720_jours": 0,
+        "jours_sans_salaire": [],
     }
 
     m = re.search(r"(\d{2}/\d{2}/\d{4})\s*au\s*(\d{2}/\d{2}/\d{4})", texte)
@@ -197,6 +199,22 @@ def parser_fiche(texte: str) -> dict:
     mx = re.search(r"0570\s+\S+\s+(\d+)\s+([\d,]+)", texte)
     if mx:
         data["0570_jours"] = int(mx.group(1))
+
+    # Code 0720 — chômage temporaire
+    mx = re.search(r"0720\s+\S+\s+(\d+)\s+([\d,]+)", texte)
+    if mx:
+        data["0720_jours"] = int(mx.group(1))
+
+    # Jours sans salaire — lignes calendrier sans code (ex: "l : 18" seul)
+    jours_sans = []
+    for ligne in texte.split("\n"):
+        m_cal = re.match(r"^([lmjv])\s*:\s*(\d{2})\s*$", ligne.strip())
+        if m_cal:
+            lettre = m_cal.group(1)
+            num    = m_cal.group(2)
+            noms   = {"l": "Lundi", "m": "Mardi/Mercredi", "j": "Jeudi", "v": "Vendredi"}
+            jours_sans.append(f"{noms.get(lettre, lettre)} {num}")
+    data["jours_sans_salaire"] = jours_sans
 
     mx = re.search(r"0991\s+\S+\s+(\d+)\s+([\d,]+)", texte)
     if mx:
@@ -298,23 +316,37 @@ def verifier(data: dict, config: dict) -> list:
     j1010 = data["1010_jours"]
     j1280 = data["1280_jours"]
     j0570 = data["0570_jours"]
-    total  = j1010 + j1280 + j0570
+    j0720 = data.get("0720_jours", 0)
+    total  = j1010 + j1280 + j0570 + j0720
     lignes = [
         neutre(f"Jours crédit-temps (0991) : {nb_ct_fiche} j") if regime != "plein" else neutre(""),
         neutre(f"Pool à justifier : {nb_pool} j"),
         neutre(""),
-        neutre(f"Travaillé         (1010) : {j1010} j"),
-        neutre(f"Congés sectoriels (1280) : {j1280} j"),
-        neutre(f"Grève             (0570) : {j0570} j"),
-        neutre(f"Total justifié           : {total} j"),
+        neutre(f"Travaillé            (1010) : {j1010} j"),
+        neutre(f"Congés sectoriels    (1280) : {j1280} j"),
+        neutre(f"Grève                (0570) : {j0570} j"),
     ]
-    lignes = [l for l in lignes if l["texte"]]
+    if j0720:
+        lignes.append(neutre(f"Chômage temporaire   (0720) : {j0720} j"))
+    lignes += [
+        neutre(""),
+        neutre(f"Total justifié              : {total} j"),
+        neutre(f"Pool attendu                : {nb_pool} j"),
+    ]
+    lignes = [l for l in lignes if l["texte"] is not None]
     if total == nb_pool:
         lignes.append(ok("✔  Nombre de jours travaillés correct"))
     else:
         diff = nb_pool - total
         lignes.append(err(f"✘  Écart : {abs(diff)} jour(s) {'non justifié(s)' if diff>0 else 'en trop'}"))
     section("Jours travaillés", lignes)
+
+    # ── Jours sans salaire ──
+    jours_sans = data.get("jours_sans_salaire", [])
+    if jours_sans:
+        lignes = [err(f"✘  Aucun salaire enregistré — {j}") for j in jours_sans]
+        lignes.append(neutre("→ Vérifiez ces journées avec votre employeur"))
+        section("⚠  Jours sans salaire détectés", lignes)
 
     # ── Paie jours travaillés ──
     h      = data["1010_heures"]
