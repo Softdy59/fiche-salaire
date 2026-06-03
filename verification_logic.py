@@ -202,19 +202,31 @@ def parser_fiche(texte: str) -> dict:
         data["0570_jours"] = int(mx.group(1))
 
     # Code 0720 — chômage temporaire
+    # Essai 1 : ligne résumé page 1 (avec jours)
     mx = re.search(r"0720\s+\S+\s+(\d+)\s+([\d,]+)", texte)
     if mx:
         data["0720_jours"] = int(mx.group(1))
+    else:
+        # Essai 2 : compter les occurrences dans le calendrier
+        data["0720_jours"] = len(re.findall(r"[lmjv]\s*:\s*\d{2}\s+0720", texte))
 
     # Code 0420 — repos compensatoire
     mx = re.search(r"0420\s+\S+\s+(\d+)\s+([\d,]+)", texte)
     if mx:
         data["0420_jours"] = int(mx.group(1))
+    else:
+        data["0420_jours"] = len(re.findall(r"[lmjv]\s*:\s*\d{2}\s+0420", texte))
 
-    # Jours sans salaire — lignes calendrier sans code (ex: "l : 18" seul)
+    # Jours sans salaire — lignes calendrier weekday sans code
+    # Un jour "blanc" = lettre semaine + numéro + rien (ou seulement espaces)
     jours_sans = []
     for ligne in texte.split("\n"):
-        m_cal = re.match(r"^([lmjv])\s*:\s*(\d{2})\s*$", ligne.strip())
+        ligne_s = ligne.strip()
+        # Chercher les jours lun-ven sans code 4 chiffres après le numéro
+        m_cal = re.match(r"^([lmjv])\s*:\s*(\d{2})\s*$", ligne_s)
+        if not m_cal:
+            # Format alternatif : "l:18" sans espaces
+            m_cal = re.match(r"^([lmjv]):(\d{2})\s*$", ligne_s)
         if m_cal:
             lettre = m_cal.group(1)
             num    = m_cal.group(2)
