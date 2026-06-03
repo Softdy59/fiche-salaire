@@ -35,7 +35,15 @@ if not verif_mdp():
 
 st.title("📋 Vérification fiche de salaire")
 st.caption("Belgique — Carrières du Tournaisis")
-st.info("🔒 Aucune donnée n'est conservée sur le serveur. Votre fiche est analysée en mémoire et immédiatement supprimée.", icon="🔒")
+
+st.info(
+    "**🔒 Confidentialité & sécurité de vos données**\n\n"
+    "- 📄 Votre fichier est lu **en mémoire uniquement** — jamais écrit sur disque\n"
+    "- 🗑️ Après l'analyse, les données brutes sont **effacées immédiatement**\n"
+    "- 🔄 Quand vous fermez ou rechargez la page, **tout est supprimé**"
+)
+
+st.divider()
 
 # ── Upload fichiers ──
 st.header("1. Fiche de salaire")
@@ -183,3 +191,6 @@ if st.button("🔍 Analyser la fiche", use_container_width=True, type="primary")
             st.error(f"{i}. {e}")
     else:
         st.success("✔  Aucune anomalie détectée — fiche correcte.")
+
+    st.divider()
+    st.caption("© Thierry LEPLA — Mai 2026")
