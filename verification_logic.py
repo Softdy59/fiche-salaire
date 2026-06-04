@@ -310,7 +310,6 @@ def verifier(data: dict, config: dict) -> list:
     lignes = [
         info(f"Période : {data['periode_debut']} → {data['periode_fin']}"),
         info(f"Mois : {mois:02d}/{annee}"),
-        info(f"Salaire horaire : €{taux:.4f}"),
         info(f"Régime : {_desc_regime(regime, jour_ct, nb_ct_fiche)}"),
     ]
     section("Informations", lignes)
