@@ -398,8 +398,8 @@ def verifier(data: dict, config: dict) -> list:
     fonction = config["fonction"]
     if fonction in ("brigadier", "chef_equipe"):
         if fonction == "brigadier":
-            nb_j = j1010
-            desc = f"Brigadier : {nb_j} j travaillés"
+            nb_j = nb_pool  # pool attendu (jours ouvrables du mois)
+            desc = f"Brigadier : {nb_j} j (pool attendu du mois)"
         else:
             nb_j = config.get("jours_brigadier", 0)
             desc = f"Chef d'équipe : {nb_j} j en fonction brigadier"
@@ -408,7 +408,7 @@ def verifier(data: dict, config: dict) -> list:
         lignes = [
             neutre(desc),
             neutre(f"Taux : €{TAUX_PRIME_CHEF:.2f}/j"),
-            neutre(f"Montant attendu      : €{mn_att:.2f}"),
+            neutre(f"Montant attendu      : {nb_j} × €{TAUX_PRIME_CHEF:.2f} = €{mn_att:.2f}"),
             neutre(f"Montant fiche (1990) : €{mn_f:.2f}"),
         ]
         if abs(mn_f - mn_att) <= 0.15:
