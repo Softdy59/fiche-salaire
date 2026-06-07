@@ -86,8 +86,6 @@ with col2:
                      "Chauffeur": "chauffeur",  "Pelliste": "pelliste"}[fonction]
 
     jours_brig = 0
-    if fonction_code == "chef_equipe":
-        jours_brig = st.number_input("Jours en fonction brigadier", min_value=0, value=0, step=1)
 
 # ── Options ──
 st.header("3. Options")

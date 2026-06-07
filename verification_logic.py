@@ -397,12 +397,9 @@ def verifier(data: dict, config: dict) -> list:
     # ── Prime chef d'équipe ──
     fonction = config["fonction"]
     if fonction in ("brigadier", "chef_equipe"):
-        if fonction == "brigadier":
-            nb_j = nb_pool  # pool attendu (jours ouvrables du mois)
-            desc = f"Brigadier : {nb_j} j (pool attendu du mois)"
-        else:
-            nb_j = config.get("jours_brigadier", 0)
-            desc = f"Chef d'équipe : {nb_j} j en fonction brigadier"
+        # Brigadier et Chef d'équipe : pool attendu × prime
+        nb_j = nb_pool
+        desc = f"{'Brigadier' if fonction == 'brigadier' else 'Chef d équipe'} : {nb_j} j (pool attendu du mois)"
         mn_att = round(nb_j * TAUX_PRIME_CHEF, 2)
         mn_f   = data["1990_montant"]
         lignes = [
