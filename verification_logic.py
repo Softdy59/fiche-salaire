@@ -158,6 +158,9 @@ def parser_fiche(texte: str) -> dict:
         "1990_montant": 0.0,
         "1712_montant": 0.0, "1712_nb_fiche": None,
         "3101_montant": 0.0, "3102_montant": 0.0,
+        "1713_jours": 0, "1713_montant": 0.0,
+        "1720_heures": 0.0, "1720_montant": 0.0,
+        "3111_montant": 0.0, "3111_nb_fiche": None,
         "1561_montant": 0.0, "1561_heures": 0.0,
         "9570_jours": 0,
         "0720_jours": 0,
@@ -263,6 +266,23 @@ def parser_fiche(texte: str) -> dict:
 
     _, _, mn = _code("3102", avec_jours=False)
     data["3102_montant"] = mn
+
+    # Code 1713 — modification d'horaire (€22,35/jour)
+    j, _, mn = _code("1713")
+    data["1713_jours"], data["1713_montant"] = j, mn
+
+    # Code 1720 — prime mazout (€0,36/heure)
+    mx = re.search(r"1720\s+\S+\s+([\d,]+)\s+([\d.,]+)\s*$", texte, re.MULTILINE)
+    if mx:
+        data["1720_heures"]  = float(mx.group(1).replace(",", "."))
+        data["1720_montant"] = float(mx.group(2).replace(".", "").replace(",", "."))
+
+    # Code 3111 — entretien vêtements personnels (€18,36/mois ou proraté)
+    _, _, mn = _code("3111", avec_jours=False)
+    data["3111_montant"] = mn
+    mx = re.search(r"nombred.indemniteentr.vetement\s+([\d,]+)", texte)
+    if mx:
+        data["3111_nb_fiche"] = int(float(mx.group(1).replace(",", ".")))
 
     mx = re.search(r"1561\s+\S+\s+(?:\d+\s+)?([\d,]+)\s+([\d.,]+)\s*$", texte, re.MULTILINE)
     if mx:
@@ -451,6 +471,61 @@ def verifier(data: dict, config: dict) -> list:
     else:
         lignes.append(err(f"✘  Montant incorrect (écart €{abs(mn_f - MONTANT_CARWASH):.2f})"))
     section("Prime car-wash (3101)", lignes)
+
+    # ── Entretien vêtements (3111) ──
+    TAUX_VETEMENT = 18.36
+    mn_f = data.get("3111_montant", 0.0)
+    nb_v = data.get("3111_nb_fiche", None)
+    if mn_f > 0 or nb_v:
+        lignes = [
+            neutre(f"Taux mensuel attendu         : €{TAUX_VETEMENT:.2f}"),
+            neutre(f"Montant fiche (3111)         : €{mn_f:.2f}"),
+        ]
+        if nb_v is not None:
+            lignes.append(neutre(f"Nb indemnités (page 2)       : {nb_v}"))
+        ecart_v = abs(mn_f - TAUX_VETEMENT)
+        if ecart_v <= 0.05:
+            lignes.append(ok("✔  Prime entretien vêtements correcte"))
+        else:
+            lignes.append(err(f"✘  Écart de €{ecart_v:.2f} (proraté ou montant modifié ?)"))
+        section("Entretien vêtements personnels (3111)", lignes)
+
+    # ── Modification d'horaire (1713) ──
+    TAUX_1713 = 22.35
+    j_1713  = data.get("1713_jours", 0)
+    mn_1713 = data.get("1713_montant", 0.0)
+    if mn_1713 > 0 or j_1713:
+        mn_att = round(j_1713 * TAUX_1713, 2)
+        lignes = [
+            neutre(f"Modification d'horaire (1713)"),
+            neutre(f"Nombre de jours              : {j_1713} j"),
+            neutre(f"Taux par jour                : €{TAUX_1713:.2f}"),
+            neutre(f"Montant attendu              : {j_1713} × €{TAUX_1713:.2f} = €{mn_att:.2f}"),
+            neutre(f"Montant fiche (1713)         : €{mn_1713:.2f}"),
+        ]
+        if abs(mn_1713 - mn_att) <= 0.05:
+            lignes.append(ok("✔  Prime modification d'horaire correcte"))
+        else:
+            lignes.append(err(f"✘  Écart de €{abs(mn_1713 - mn_att):.2f}"))
+        section("Modification d'horaire (1713)", lignes)
+
+    # ── Prime mazout (1720) ──
+    TAUX_MAZOUT = 0.36
+    h_1720  = data.get("1720_heures", 0.0)
+    mn_1720 = data.get("1720_montant", 0.0)
+    if mn_1720 > 0 or h_1720:
+        mn_att = round(h_1720 * TAUX_MAZOUT, 2)
+        lignes = [
+            neutre(f"Heures concernées            : {h_1720:.2f} h"),
+            neutre(f"Taux par heure               : €{TAUX_MAZOUT:.2f}"),
+            neutre(f"Montant attendu              : {h_1720:.2f} × €{TAUX_MAZOUT:.2f} = €{mn_att:.2f}"),
+            neutre(f"Montant fiche (1720)         : €{mn_1720:.2f}"),
+        ]
+        if abs(mn_1720 - mn_att) <= 0.05:
+            lignes.append(ok("✔  Prime mazout correcte"))
+        else:
+            lignes.append(err(f"✘  Écart de €{abs(mn_1720 - mn_att):.2f}"))
+        section("Prime mazout (1720)", lignes)
 
     # ── Heures supplémentaires ──
     if config.get("heures_sup"):
