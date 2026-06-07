@@ -398,16 +398,17 @@ def verifier(data: dict, config: dict) -> list:
     fonction = config["fonction"]
     if fonction in ("brigadier", "chef_equipe"):
         mn_f   = data["1990_montant"]
-        mn_att = round(nb_pool * TAUX_PRIME_CHEF, 2)
-        # Nombre de primes réel = montant fiche ÷ taux
-        nb_reel = round(mn_f / TAUX_PRIME_CHEF, 2) if mn_f else 0
+        nb_j   = j1010  # jours travaillés (code 1010)
+        mn_att = round(nb_j * TAUX_PRIME_CHEF, 2)
+        # Contrôle inverse : montant fiche ÷ jours travaillés = taux/j
+        taux_reel = round(mn_f / nb_j, 4) if nb_j else 0
         f_nom = "Brigadier" if fonction == "brigadier" else "Chef d'équipe"
         lignes = [
-            neutre(f"Fonction             : {f_nom}"),
-            neutre(f"Pool attendu du mois : {nb_pool} j"),
-            neutre(f"Montant attendu      : {nb_pool} × €{TAUX_PRIME_CHEF:.2f} = €{mn_att:.2f}"),
-            neutre(f"Montant fiche (1990) : €{mn_f:.2f}"),
-            neutre(f"Nb primes sur fiche  : €{mn_f:.2f} ÷ €{TAUX_PRIME_CHEF:.2f} = {nb_reel} primes"),
+            neutre(f"Fonction                     : {f_nom}"),
+            neutre(f"Jours travaillés (1010)      : {nb_j} j"),
+            neutre(f"Montant attendu              : {nb_j} × €{TAUX_PRIME_CHEF:.2f} = €{mn_att:.2f}"),
+            neutre(f"Montant fiche (1990)         : €{mn_f:.2f}"),
+            neutre(f"Contrôle taux/j              : €{mn_f:.2f} ÷ {nb_j} j = €{taux_reel:.4f}/j"),
         ]
         if abs(mn_f - mn_att) <= 0.15:
             lignes.append(ok("✔  Prime chef d'équipe correcte"))
