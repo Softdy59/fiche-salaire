@@ -397,39 +397,39 @@ def verifier(data: dict, config: dict) -> list:
     # ── Prime chef d'équipe ──
     fonction = config["fonction"]
     if fonction in ("brigadier", "chef_equipe"):
-        # Brigadier et Chef d'équipe : pool attendu × prime
-        nb_j = nb_pool
-        desc = f"{'Brigadier' if fonction == 'brigadier' else 'Chef d équipe'} : {nb_j} j (pool attendu du mois)"
-        mn_att = round(nb_j * TAUX_PRIME_CHEF, 2)
         mn_f   = data["1990_montant"]
+        mn_att = round(nb_pool * TAUX_PRIME_CHEF, 2)
+        # Nombre de primes réel = montant fiche ÷ taux
+        nb_reel = round(mn_f / TAUX_PRIME_CHEF, 2) if mn_f else 0
+        f_nom = "Brigadier" if fonction == "brigadier" else "Chef d'équipe"
         lignes = [
-            neutre(desc),
-            neutre(f"Taux : €{TAUX_PRIME_CHEF:.2f}/j"),
-            neutre(f"Montant attendu      : {nb_j} × €{TAUX_PRIME_CHEF:.2f} = €{mn_att:.2f}"),
+            neutre(f"Fonction             : {f_nom}"),
+            neutre(f"Pool attendu du mois : {nb_pool} j"),
+            neutre(f"Montant attendu      : {nb_pool} × €{TAUX_PRIME_CHEF:.2f} = €{mn_att:.2f}"),
             neutre(f"Montant fiche (1990) : €{mn_f:.2f}"),
+            neutre(f"Nb primes sur fiche  : €{mn_f:.2f} ÷ €{TAUX_PRIME_CHEF:.2f} = {nb_reel} primes"),
         ]
         if abs(mn_f - mn_att) <= 0.15:
             lignes.append(ok("✔  Prime chef d'équipe correcte"))
+            if abs(mn_f - mn_att) > 0.01:
+                lignes.append(neutre(f"   (écart de €{abs(mn_f - mn_att):.2f} — arrondi logiciel de paie)"))
         else:
             lignes.append(err(f"✘  Écart de €{abs(mn_f - mn_att):.2f}"))
         section("Prime chef d'équipe (1990)", lignes)
 
-    # ── Prime pénible ──
-    if config.get("penible"):
-        nb_p   = config.get("nb_penible", 0)
+    # ── Prime pénible — lu directement sur la fiche ──
+    mn_f  = data["1712_montant"]
+    nb_p2 = data.get("1712_nb_fiche")
+    if mn_f > 0 or nb_p2:
+        nb_p   = nb_p2 if nb_p2 is not None else 0
         mn_att = round(nb_p * TAUX_PENIBLE, 2)
-        mn_f   = data["1712_montant"]
-        nb_p2  = data.get("1712_nb_fiche")
-        lignes = [neutre(f"Nombre de primes saisi : {nb_p}")]
-        if nb_p2 is not None:
-            lignes.append(neutre(f"Nombre page 2 fiche    : {nb_p2}"))
-            if nb_p != nb_p2:
-                lignes.append(err(f"✘  Écart sur le nombre : {nb_p} ≠ {nb_p2}"))
-            else:
-                lignes.append(ok("✔  Nombre cohérent avec la fiche"))
-        lignes += [
-            neutre(f"Montant attendu       : {nb_p} × €{TAUX_PENIBLE:.2f} = €{mn_att:.2f}"),
-            neutre(f"Montant fiche (1712)  : €{mn_f:.2f}"),
+        nb_calc = round(mn_f / TAUX_PENIBLE, 2) if mn_f else 0
+        lignes = [
+            neutre(f"Nombre de primes (page 2 fiche) : {nb_p}"),
+            neutre(f"Taux par prime                  : €{TAUX_PENIBLE:.2f}"),
+            neutre(f"Montant attendu                 : {nb_p} × €{TAUX_PENIBLE:.2f} = €{mn_att:.2f}"),
+            neutre(f"Montant fiche (1712)            : €{mn_f:.2f}"),
+            neutre(f"Contrôle                        : €{mn_f:.2f} ÷ €{TAUX_PENIBLE:.2f} = {nb_calc} primes"),
         ]
         if abs(mn_f - mn_att) <= 0.05:
             lignes.append(ok("✔  Prime travail pénible correcte"))

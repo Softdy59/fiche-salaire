@@ -93,10 +93,8 @@ st.header("3. Options")
 col3, col4 = st.columns(2)
 
 with col3:
-    penible = st.checkbox("Primes travail pénible ?")
+    penible = True  # toujours vérifié automatiquement depuis la fiche
     nb_penible = 0
-    if penible:
-        nb_penible = st.number_input("Nombre de primes pénible", min_value=0, value=0, step=1)
 
 with col4:
     heures_sup = st.checkbox("Heures supplémentaires ?")
