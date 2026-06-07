@@ -158,8 +158,8 @@ def parser_fiche(texte: str) -> dict:
         "1990_montant": 0.0,
         "1712_montant": 0.0, "1712_nb_fiche": None,
         "3101_montant": 0.0, "3102_montant": 0.0,
-        "1713_jours": 0, "1713_montant": 0.0,
-        "1720_heures": 0.0, "1720_montant": 0.0,
+        "1713_montant": 0.0, "1713_nb_fiche": None,
+        "1720_montant": 0.0, "1720_nb_fiche": None,
         "3111_montant": 0.0, "3111_nb_fiche": None,
         "1561_montant": 0.0, "1561_heures": 0.0,
         "9570_jours": 0,
@@ -287,22 +287,19 @@ def parser_fiche(texte: str) -> dict:
     _, _, mn = _code("3102", avec_jours=False)
     data["3102_montant"] = mn
 
-    # Code 1713 — modification d'horaire (€22,35/jour)
-    data["1713_jours"]   = _jours_ligne("1713")
+    # Code 1713 — modification d'horaire (€22,35/prime)
     data["1713_montant"] = _montant_ligne("1713")
+    mx = re.search(r"nbrdeprimesdemodifhoraire\s+([\d,]+)", texte)
+    if mx:
+        data["1713_nb_fiche"] = float(mx.group(1).replace(",", "."))
 
     # Code 1720 — prime mazout (€0,36/heure)
-    # Les heures sont le premier nombre, le montant est le dernier
-    for ligne in texte.split("\n"):
-        if re.match(r"^\s*1720\s", ligne):
-            nombres = re.findall(r"[\d]+[.,][\d]+", ligne)
-            if len(nombres) >= 2:
-                data["1720_heures"]  = float(nombres[0].replace(",", "."))
-                data["1720_montant"] = float(nombres[-1].replace(".", "").replace(",", "."))
-            elif len(nombres) == 1:
-                data["1720_montant"] = float(nombres[0].replace(".", "").replace(",", "."))
+    data["1720_montant"] = _montant_ligne("1720")
+    mx = re.search(r"nbrdeprimesmazout\s+([\d,]+)", texte)
+    if mx:
+        data["1720_nb_fiche"] = float(mx.group(1).replace(",", "."))
 
-    # Code 3111 — entretien vêtements personnels
+    # Code 3111 — entretien vêtements personnels (€18,36/mois)
     data["3111_montant"] = _montant_ligne("3111")
     mx = re.search(r"nombred.indemniteentr.vetement\s+([\d,]+)", texte)
     if mx:
@@ -516,39 +513,45 @@ def verifier(data: dict, config: dict) -> list:
 
     # ── Modification d'horaire (1713) ──
     TAUX_1713 = 22.35
-    j_1713  = data.get("1713_jours", 0)
-    mn_1713 = data.get("1713_montant", 0.0)
-    if mn_1713 > 0 or j_1713:
-        mn_att = round(j_1713 * TAUX_1713, 2)
+    mn_1713  = data.get("1713_montant", 0.0)
+    nb_1713  = data.get("1713_nb_fiche", None)
+    if mn_1713 > 0:
+        mn_att = round((nb_1713 or 0) * TAUX_1713, 2)
         lignes = [
-            neutre(f"Modification d'horaire (1713)"),
-            neutre(f"Nombre de jours              : {j_1713} j"),
-            neutre(f"Taux par jour                : €{TAUX_1713:.2f}"),
-            neutre(f"Montant attendu              : {j_1713} × €{TAUX_1713:.2f} = €{mn_att:.2f}"),
-            neutre(f"Montant fiche (1713)         : €{mn_1713:.2f}"),
+            neutre(f"Taux par prime               : €{TAUX_1713:.2f}"),
         ]
-        if abs(mn_1713 - mn_att) <= 0.05:
+        if nb_1713 is not None:
+            lignes.append(neutre(f"Nb primes (page 2)           : {nb_1713}"))
+            lignes.append(neutre(f"Montant attendu              : {nb_1713} × €{TAUX_1713:.2f} = €{mn_att:.2f}"))
+        lignes.append(neutre(f"Montant fiche (1713)         : €{mn_1713:.2f}"))
+        if nb_1713 is not None and abs(mn_1713 - mn_att) <= 0.05:
             lignes.append(ok("✔  Prime modification d'horaire correcte"))
-        else:
+        elif nb_1713 is not None:
             lignes.append(err(f"✘  Écart de €{abs(mn_1713 - mn_att):.2f}"))
+        else:
+            lignes.append(neutre(f"Contrôle : €{mn_1713:.2f} ÷ €{TAUX_1713:.2f} = {round(mn_1713/TAUX_1713,2)} prime(s)"))
         section("Modification d'horaire (1713)", lignes)
 
     # ── Prime mazout (1720) ──
     TAUX_MAZOUT = 0.36
-    h_1720  = data.get("1720_heures", 0.0)
     mn_1720 = data.get("1720_montant", 0.0)
-    if mn_1720 > 0 or h_1720:
-        mn_att = round(h_1720 * TAUX_MAZOUT, 2)
+    nb_1720 = data.get("1720_nb_fiche", None)
+    if mn_1720 > 0:
         lignes = [
-            neutre(f"Heures concernées            : {h_1720:.2f} h"),
             neutre(f"Taux par heure               : €{TAUX_MAZOUT:.2f}"),
-            neutre(f"Montant attendu              : {h_1720:.2f} × €{TAUX_MAZOUT:.2f} = €{mn_att:.2f}"),
-            neutre(f"Montant fiche (1720)         : €{mn_1720:.2f}"),
         ]
-        if abs(mn_1720 - mn_att) <= 0.05:
-            lignes.append(ok("✔  Prime mazout correcte"))
+        if nb_1720 is not None:
+            mn_att = round(nb_1720 * TAUX_MAZOUT, 2)
+            lignes.append(neutre(f"Heures (page 2)              : {nb_1720} h"))
+            lignes.append(neutre(f"Montant attendu              : {nb_1720} × €{TAUX_MAZOUT:.2f} = €{mn_att:.2f}"))
+            lignes.append(neutre(f"Montant fiche (1720)         : €{mn_1720:.2f}"))
+            if abs(mn_1720 - mn_att) <= 0.02:
+                lignes.append(ok("✔  Prime mazout correcte"))
+            else:
+                lignes.append(err(f"✘  Écart de €{abs(mn_1720 - mn_att):.2f}"))
         else:
-            lignes.append(err(f"✘  Écart de €{abs(mn_1720 - mn_att):.2f}"))
+            lignes.append(neutre(f"Montant fiche (1720)         : €{mn_1720:.2f}"))
+            lignes.append(neutre(f"Contrôle : €{mn_1720:.2f} ÷ €{TAUX_MAZOUT:.2f} = {round(mn_1720/TAUX_MAZOUT,2)} h"))
         section("Prime mazout (1720)", lignes)
 
     # ── Heures supplémentaires ──
