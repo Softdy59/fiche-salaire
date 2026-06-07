@@ -180,16 +180,36 @@ def parser_fiche(texte: str) -> dict:
     if m2:
         data["salaire_horaire"] = float(m2.group(1).replace(",", "."))
 
+    def _montant_ligne(code: str) -> float:
+        """Extrait le dernier montant positif d'une ligne commençant par ce code."""
+        for ligne in texte.split("\n"):
+            if re.match(rf"^\s*{code}\s", ligne):
+                # Tous les nombres sur cette ligne
+                nombres = re.findall(r"([\d]+[.,][\d]+)", ligne)
+                # Prendre le dernier (= montant), ignorer les négatifs
+                for n in reversed(nombres):
+                    val = float(n.replace(".", "").replace(",", "."))
+                    if val > 0:
+                        return val
+        return 0.0
+
+    def _jours_ligne(code: str) -> int:
+        """Extrait le nombre de jours d'une ligne commençant par ce code."""
+        for ligne in texte.split("\n"):
+            if re.match(rf"^\s*{code}\s", ligne):
+                mx = re.search(rf"{code}\s+\S+\s+(\d+)\s+[\d,]", ligne)
+                if mx:
+                    return int(mx.group(1))
+        return 0
+
     def _code(code, avec_jours=True):
         if avec_jours:
             mx = re.search(rf"{code}\s+\S+\s+(\d+)\s+([\d,]+)\s+([\d.,]+)", texte)
             if mx:
                 return int(mx.group(1)), float(mx.group(2).replace(",", ".")), \
                        float(mx.group(3).replace(".", "").replace(",", "."))
-        mx2 = re.search(rf"{code}\s+\S+\s+([\d.,]+)\s*$", texte, re.MULTILINE)
-        if mx2:
-            return 0, 0.0, float(mx2.group(1).replace(".", "").replace(",", "."))
-        return 0, 0.0, 0.0
+        mn = _montant_ligne(code)
+        return 0, 0.0, mn
 
     j, h, mn = _code("1010")
     data["1010_jours"], data["1010_heures"], data["1010_montant"] = j, h, mn
@@ -268,18 +288,22 @@ def parser_fiche(texte: str) -> dict:
     data["3102_montant"] = mn
 
     # Code 1713 — modification d'horaire (€22,35/jour)
-    j, _, mn = _code("1713")
-    data["1713_jours"], data["1713_montant"] = j, mn
+    data["1713_jours"]   = _jours_ligne("1713")
+    data["1713_montant"] = _montant_ligne("1713")
 
     # Code 1720 — prime mazout (€0,36/heure)
-    mx = re.search(r"1720\s+\S+\s+([\d,]+)\s+([\d.,]+)\s*$", texte, re.MULTILINE)
-    if mx:
-        data["1720_heures"]  = float(mx.group(1).replace(",", "."))
-        data["1720_montant"] = float(mx.group(2).replace(".", "").replace(",", "."))
+    # Les heures sont le premier nombre, le montant est le dernier
+    for ligne in texte.split("\n"):
+        if re.match(r"^\s*1720\s", ligne):
+            nombres = re.findall(r"[\d]+[.,][\d]+", ligne)
+            if len(nombres) >= 2:
+                data["1720_heures"]  = float(nombres[0].replace(",", "."))
+                data["1720_montant"] = float(nombres[-1].replace(".", "").replace(",", "."))
+            elif len(nombres) == 1:
+                data["1720_montant"] = float(nombres[0].replace(".", "").replace(",", "."))
 
-    # Code 3111 — entretien vêtements personnels (€18,36/mois ou proraté)
-    _, _, mn = _code("3111", avec_jours=False)
-    data["3111_montant"] = mn
+    # Code 3111 — entretien vêtements personnels
+    data["3111_montant"] = _montant_ligne("3111")
     mx = re.search(r"nombred.indemniteentr.vetement\s+([\d,]+)", texte)
     if mx:
         data["3111_nb_fiche"] = int(float(mx.group(1).replace(",", ".")))
